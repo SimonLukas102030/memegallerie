@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"> 
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +11,7 @@
             padding: 40px 20px;
             background-color: #f5f5f7;
             color: #1d1d1f;
+            overflow-y: scroll;
         }
         .header {
             max-width: 1200px;
@@ -25,6 +26,7 @@
             border-radius: 3px;
             margin: 20px auto;
             overflow: hidden;
+            transition: opacity 0.5s ease;
         }
         .progress-bar {
             height: 100%;
@@ -48,6 +50,7 @@
             gap: 20px;
             max-width: 1200px;
             margin: 0 auto;
+            transition: opacity 0.3s ease;
         }
         .item {
             position: relative;
@@ -57,11 +60,12 @@
             background: #e5e5ea;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.2s ease;
+            will-change: transform, box-shadow;
         }
         .item:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transform: scale(1.03);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
         }
         .item img {
             position: absolute;
@@ -72,6 +76,7 @@
             object-fit: cover;
             opacity: 0;
             transition: opacity 0.4s ease;
+            will-change: opacity;
         }
         .item img.loaded {
             opacity: 1;
@@ -83,9 +88,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -99,11 +104,12 @@
         }
         .lightbox-content {
             position: relative;
-            max-width: 90%;
+            max-width: 85%;
             max-height: 75vh;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            cursor: pointer;
         }
         .lightbox canvas, .lightbox img.main-image {
             display: block;
@@ -115,6 +121,7 @@
             margin-top: 30px;
             display: flex;
             gap: 15px;
+            z-index: 1002;
         }
         button {
             background: rgba(0,0,0,0.05);
@@ -134,24 +141,52 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            background: rgba(0,0,0,0.08);
-            width: 36px;
-            height: 36px;
+            background: rgba(0,0,0,0.06);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 1001;
+            color: #1d1d1f;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .close-btn:hover {
+            background: rgba(0,0,0,0.12);
+            transform: scale(1.05);
+        }
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.04);
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 18px;
-            font-weight: bold;
             cursor: pointer;
             z-index: 1001;
             color: #1d1d1f;
+            user-select: none;
+            transition: background 0.2s, transform 0.2s;
         }
+        .nav-btn:hover {
+            background: rgba(0,0,0,0.08);
+            transform: translateY(-50%) scale(1.05);
+        }
+        .nav-left { left: 30px; }
+        .nav-right { right: 30px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="progress-container">
+        <div class="progress-container" id="progressContainer">
             <div class="progress-bar" id="progressBar"></div>
         </div>
         <div class="error-log" id="errorLog"></div>
@@ -160,111 +195,230 @@
     <div class="grid" id="gallery"></div>
     
     <div class="lightbox" id="lightbox">
-        <div class="close-btn" onclick="closeLightbox()">✕</div>
-        <div class="lightbox-content">
+        <div class="close-btn" id="closeBtn">✕</div>
+        <div class="nav-btn nav-left" id="prevBtn">⟨</div>
+        <div class="nav-btn nav-right" id="nextBtn">⟩</div>
+        
+        <div class="lightbox-content" id="mediaContainer">
             <canvas id="gifCanvas" style="display: none;"></canvas>
             <img id="mainView" class="main-image" style="display: none;">
         </div>
+        
         <div class="controls">
-            <button onclick="downloadItem()">Download</button>
+            <button id="downloadBtn">Download</button>
         </div>
     </div>
     
     <script>
-        const files = [
-            'meme1.jpeg',
-            'meme2.gif',
-            'meme3.png'
-        ];
-        
         const grid = document.getElementById('gallery');
         const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
         const errorLog = document.getElementById('errorLog');
         const lightbox = document.getElementById('lightbox');
         const mainView = document.getElementById('mainView');
         const gifCanvas = document.getElementById('gifCanvas');
+        const mediaContainer = document.getElementById('mediaContainer');
+        const closeBtn = document.getElementById('closeBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
         const ctx = gifCanvas.getContext('2d');
         
+        let files = [];
         let loadedCount = 0;
-        let currentFile = '';
+        let totalFiles = 0;
+        let currentIndex = -1;
+        let isGifPaused = false;
         
+        async function fetchGalleryImages() {
+            const repoUrl = 'https://api.github.com/repos/SimonLukas102030/memegallerie/contents/';
+            const cacheKey = 'meme_gallery_files';
+            
+            const cachedData = sessionStorage.getItem(cacheKey);
+            if (cachedData) {
+                return JSON.parse(cachedData);
+            }
+
+            try {
+                const response = await fetch(repoUrl);
+                if (!response.ok) throw new Error('API limit reached or repository not found.');
+                
+                const data = await response.json();
+                const imageFiles = data
+                    .filter(file => file.type === 'file' && file.name.match(/\.(jpe?g|png|gif)$/i))
+                    .map(file => file.name);
+                
+                sessionStorage.setItem(cacheKey, JSON.stringify(imageFiles));
+                return imageFiles;
+                
+            } catch (error) {
+                errorLog.textContent = `Error loading file list: ${error.message}`;
+                return [];
+            }
+        }
+
         function updateProgress(isError, filename) {
             loadedCount++;
-            const percentage = (loadedCount / files.length) * 100;
+            const percentage = (loadedCount / totalFiles) * 100;
             progressBar.style.width = percentage + '%';
             
             if (isError) {
                 progressBar.classList.add('error');
                 const errorMsg = document.createElement('div');
-                errorMsg.textContent = `Error 404: File not found -> ${filename}`;
+                errorMsg.textContent = `Error 404: ${filename}`;
                 errorLog.appendChild(errorMsg);
             }
             
-            if (loadedCount === files.length) {
+            if (loadedCount === totalFiles && totalFiles > 0) {
                 setTimeout(() => {
-                    progressBar.parentElement.style.opacity = '0';
-                }, 1000);
+                    progressContainer.style.opacity = '0';
+                    setTimeout(() => progressContainer.style.display = 'none', 500);
+                }, 800);
             }
         }
-        
-        files.forEach(filename => {
-            const item = document.createElement('div');
-            item.className = 'item';
+
+        async function initGallery() {
+            files = await fetchGalleryImages();
+            totalFiles = files.length;
             
-            const img = new Image();
-            img.onload = () => {
-                img.classList.add('loaded');
-                updateProgress(false);
-            };
-            img.onerror = () => {
-                updateProgress(true, filename);
-            };
+            if (totalFiles === 0) {
+                errorLog.textContent = "No images found or API limit reached.";
+                progressContainer.style.display = 'none';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
             
-            img.src = filename;
-            img.onclick = () => openLightbox(filename);
-            
-            item.appendChild(img);
-            grid.appendChild(item);
-        });
-        
-        function openLightbox(filename) {
-            currentFile = filename;
-            lightbox.classList.add('active');
-            
-            if (filename.toLowerCase().endsWith('.gif')) {
-                mainView.style.display = 'none';
-                gifCanvas.style.display = 'block';
+            files.forEach((filename, index) => {
+                const item = document.createElement('div');
+                item.className = 'item';
+                item.dataset.index = index;
                 
                 const img = new Image();
-                img.src = filename;
                 img.onload = () => {
-                    gifCanvas.width = img.width;
-                    gifCanvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
+                    img.classList.add('loaded');
+                    updateProgress(false);
                 };
-            } else {
-                gifCanvas.style.display = 'none';
-                mainView.style.display = 'block';
-                mainView.src = filename;
-            }
+                img.onerror = () => {
+                    updateProgress(true, filename);
+                };
+                
+                img.src = filename;
+                item.appendChild(img);
+                fragment.appendChild(item);
+            });
+            
+            grid.appendChild(fragment);
         }
-        
+
+        function updateLightboxMedia() {
+            if (currentIndex < 0 || currentIndex >= files.length) return;
+            
+            const filename = files[currentIndex];
+            isGifPaused = false;
+            gifCanvas.style.display = 'none';
+            mainView.style.display = 'block';
+            mainView.src = filename;
+        }
+
+        function openLightbox(index) {
+            currentIndex = parseInt(index, 10);
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            updateLightboxMedia();
+        }
+
         function closeLightbox() {
             lightbox.classList.remove('active');
+            document.body.style.overflow = 'pointer';
+            document.body.style.overflowY = 'scroll';
             setTimeout(() => {
                 mainView.src = '';
                 ctx.clearRect(0, 0, gifCanvas.width, gifCanvas.height);
+                currentIndex = -1;
             }, 300);
         }
+
+        function navigateLightbox(direction) {
+            if (files.length === 0) return;
+            currentIndex += direction;
+            
+            if (currentIndex < 0) currentIndex = files.length - 1;
+            if (currentIndex >= files.length) currentIndex = 0;
+            
+            updateLightboxMedia();
+        }
+
+        grid.addEventListener('click', (e) => {
+            const item = e.target.closest('.item');
+            if (item && item.dataset.index !== undefined) {
+                openLightbox(item.dataset.index);
+            }
+        });
+
+        mediaContainer.addEventListener('click', () => {
+            if (currentIndex < 0) return;
+            const filename = files[currentIndex];
+            if (!filename.toLowerCase().endsWith('.gif')) return;
+
+            if (isGifPaused) {
+                gifCanvas.style.style.display = 'none';
+                gifCanvas.style.display = 'none';
+                mainView.style.display = 'block';
+                isGifPaused = false;
+            } else {
+                gifCanvas.width = mainView.naturalWidth;
+                gifCanvas.height = mainView.naturalHeight;
+                ctx.drawImage(mainView, 0, 0);
+                
+                mainView.style.display = 'none';
+                gifCanvas.style.display = 'block';
+                isGifPaused = true;
+            }
+        });
         
-        function downloadItem() {
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateLightbox(-1);
+        });
+        
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateLightbox(1);
+        });
+
+        closeBtn.addEventListener('click', closeLightbox);
+        
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) {
+                closeLightbox();
+            }
+        });
+        
+        window.addEventListener('keydown', (e) => {
+            if (!lightbox.classList.contains('active')) return;
+            
+            if (e.key === 'ArrowLeft') {
+                navigateLightbox(-1);
+            } else if (e.key === 'ArrowRight') {
+                navigateLightbox(1);
+            } else if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (currentIndex < 0) return;
+            const currentFile = files[currentIndex];
             const link = document.createElement('a');
             link.href = currentFile;
             link.download = currentFile.split('/').pop();
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
+        });
+
+        initGallery();
     </script>
 </body>
 </html>
