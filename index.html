@@ -1,384 +1,270 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>MakeItMeme Galerie</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery</title>
     <style>
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #000000;
-            color: #ffffff;
             margin: 0;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-font-smoothing: antialiased;
-            min-height: 100vh;
+            padding: 40px 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
         }
-        h1 {
+        .header {
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
             text-align: center;
-            font-size: clamp(2rem, 5vw, 3rem);
-            font-weight: 700;
-            margin: 40px 0;
-            letter-spacing: -0.5px;
-            background: linear-gradient(180deg, #ffffff 0%, #a1a1a1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
         }
-        .gallery {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
-            gap: 16px;
+        .progress-container {
             width: 100%;
-            max-width: 3840px;
+            max-width: 400px;
+            height: 6px;
+            background: #e5e5ea;
+            border-radius: 3px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #007aff;
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+        .progress-bar.error {
+            background: #ff3b30;
+        }
+        .error-log {
+            color: #ff3b30;
+            font-size: 13px;
+            margin-top: 10px;
+            min-height: 15px;
+            font-weight: 500;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 0 16px 40px 16px;
         }
-        @media (min-width: 768px) {
-            .gallery {
-                gap: 24px;
-                padding: 0 32px 60px 32px;
-            }
-        }
-        @media (min-width: 2000px) {
-            .gallery {
-                grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-                gap: 32px;
-                padding: 0 64px 80px 64px;
-            }
-        }
-        .meme-card {
-            background-color: #1c1c1e;
+        .item {
+            position: relative;
+            padding-top: 100%;
             border-radius: 16px;
             overflow: hidden;
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #e5e5ea;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             cursor: pointer;
-            position: relative;
-            will-change: transform;
-            opacity: 0;
-            transform: translateY(30px);
-            animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        @keyframes cardAppear {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .item:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
-        @media (hover: hover) {
-            .meme-card:hover {
-                transform: scale(1.03) translateY(-4px);
-                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
-                z-index: 2;
-            }
-        }
-        .meme-card:active {
-            transform: scale(0.97);
-        }
-        .meme-img-container {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            background-color: #0a0a0c;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .meme-img {
+        .item img {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
             opacity: 0;
-            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.4s ease;
         }
-        .meme-img.loaded {
+        .item img.loaded {
             opacity: 1;
         }
-        .meme-info {
-            padding: 16px;
-            text-align: center;
-            font-size: 15px;
-            font-weight: 500;
-            color: #8e8e93;
-            word-break: break-all;
-            background-color: #1c1c1e;
-            transition: color 0.2s ease;
-        }
-        @media (hover: hover) {
-            .meme-card:hover .meme-info {
-                color: #ffffff;
-            }
-        }
-        .loading {
-            text-align: center;
-            font-size: 18px;
-            color: #8e8e93;
-            grid-column: 1 / -1;
-            padding: 60px;
-        }
         .lightbox {
-            visibility: hidden;
-            opacity: 0;
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             z-index: 1000;
-            display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            backdrop-filter: blur(0px);
-            -webkit-backdrop-filter: blur(0px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         .lightbox.active {
-            visibility: visible;
+            display: flex;
             opacity: 1;
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
         }
-        .lightbox-wrapper {
+        .lightbox-content {
             position: relative;
-            width: 90%;
-            height: 75vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            will-change: transform;
-            touch-action: none;
-            -webkit-touch-callout: none;
+            max-width: 90%;
+            max-height: 75vh;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
-        .lightbox-img {
+        .lightbox canvas, .lightbox img.main-image {
+            display: block;
             max-width: 100%;
-            max-height: 100%;
+            max-height: 75vh;
             object-fit: contain;
-            border-radius: 16px;
-            transform: scale(0.85) translateY(30px);
-            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-            pointer-events: none;
         }
-        .lightbox.active .lightbox-img {
-            transform: scale(1) translateY(0);
-        }
-        .freeze-canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: none;
-            pointer-events: none;
-            border-radius: 16px;
-        }
-        .lightbox-buttons {
-            margin-top: 32px;
+        .controls {
+            margin-top: 30px;
             display: flex;
-            gap: 16px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s, opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
-            z-index: 1001;
+            gap: 15px;
         }
-        .lightbox.active .lightbox-buttons {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .btn {
-            background-color: #ffffff;
-            color: #000000;
+        button {
+            background: rgba(0,0,0,0.05);
             border: none;
-            padding: 14px 28px;
-            font-size: 16px;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 15px;
             font-weight: 600;
-            border-radius: 30px;
             cursor: pointer;
-            text-decoration: none;
-            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
-            display: inline-flex;
-            align-items: center;
+            color: #1d1d1f;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.08);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
             justify-content: center;
-        }
-        @media (hover: hover) {
-            .btn:hover {
-                background-color: #e5e5ea;
-                transform: scale(1.05);
-            }
-        }
-        .btn:active {
-            transform: scale(0.95);
-        }
-        .btn.close-btn {
-            background-color: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
-        }
-        @media (hover: hover) {
-            .btn.close-btn:hover {
-                background-color: rgba(255, 255, 255, 0.25);
-            }
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            color: #1d1d1f;
         }
     </style>
 </head>
 <body>
-
-    <h1>MakeItMeme Galerie</h1>
-    <div class="gallery" id="gallery">
-        <div class="loading" id="status">Medien werden geladen... (Build: V4-Contents-API)</div>
+    <div class="header">
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="error-log" id="errorLog"></div>
     </div>
-
+    
+    <div class="grid" id="gallery"></div>
+    
     <div class="lightbox" id="lightbox">
-        <div class="lightbox-wrapper" id="lightbox-wrapper">
-            <img class="lightbox-img" id="lightbox-img" src="" alt="">
-            <canvas class="freeze-canvas" id="freeze-canvas"></canvas>
+        <div class="close-btn" onclick="closeLightbox()">✕</div>
+        <div class="lightbox-content">
+            <canvas id="gifCanvas" style="display: none;"></canvas>
+            <img id="mainView" class="main-image" style="display: none;">
         </div>
-        <div class="lightbox-buttons">
-            <a class="btn" id="download-btn" download target="_blank">Herunterladen</a>
-            <button class="btn close-btn" id="close-btn">Schließen</button>
+        <div class="controls">
+            <button onclick="downloadItem()">Download</button>
         </div>
     </div>
-
+    
     <script>
-        const repoOwner = 'SimonLukas102030';
-        const repoName = 'makeitmeme';
-        const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/`;
-
+        const files = [
+            'meme1.jpeg',
+            'meme2.gif',
+            'meme3.png'
+        ];
+        
+        const grid = document.getElementById('gallery');
+        const progressBar = document.getElementById('progressBar');
+        const errorLog = document.getElementById('errorLog');
         const lightbox = document.getElementById('lightbox');
-        const lightboxImg = document.getElementById('lightbox-img');
-        const freezeCanvas = document.getElementById('freeze-canvas');
-        const downloadBtn = document.getElementById('download-btn');
-        const closeModalBtn = document.getElementById('close-btn');
-        const lightboxWrapper = document.getElementById('lightbox-wrapper');
-        const gallery = document.getElementById('gallery');
-        const status = document.getElementById('status');
-
-        async function loadGallery() {
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('API-Limit erreicht oder Server-Fehler');
-                
-                const files = await response.json();
-                const allowedExtensions = ['.jpg', '.jpeg', '.gif', '.png'];
-                
-                const imageFiles = files.filter(file => 
-                    file.type === 'file' && 
-                    allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
-                );
-
-                if (imageFiles.length === 0) {
-                    status.textContent = 'Keine passenden Medien im Repository gefunden. (Build: V4)';
-                    return;
-                }
-
-                status.remove();
-                
-                imageFiles.forEach((file, index) => {
-                    const card = document.createElement('div');
-                    card.className = 'meme-card';
-                    card.style.animationDelay = `${index * 0.03}s`;
-
-                    const imgContainer = document.createElement('div');
-                    imgContainer.className = 'meme-img-container';
-
-                    const img = document.createElement('img');
-                    img.className = 'meme-img';
-                    img.src = file.download_url;
-                    img.alt = file.name;
-                    img.loading = 'lazy';
-                    
-                    img.addEventListener('load', () => {
-                        img.classList.add('loaded');
-                    });
-
-                    const info = document.createElement('div');
-                    info.className = 'meme-info';
-                    info.textContent = file.name;
-
-                    imgContainer.appendChild(img);
-                    card.appendChild(imgContainer);
-                    card.appendChild(info);
-                    
-                    card.addEventListener('click', () => openLightbox(file.download_url, file.name));
-                    
-                    gallery.appendChild(card);
-                });
-            } catch (err) {
-                status.textContent = `Fehler: ${err.message} (Build: V4)`;
+        const mainView = document.getElementById('mainView');
+        const gifCanvas = document.getElementById('gifCanvas');
+        const ctx = gifCanvas.getContext('2d');
+        
+        let loadedCount = 0;
+        let currentFile = '';
+        
+        function updateProgress(isError, filename) {
+            loadedCount++;
+            const percentage = (loadedCount / files.length) * 100;
+            progressBar.style.width = percentage + '%';
+            
+            if (isError) {
+                progressBar.classList.add('error');
+                const errorMsg = document.createElement('div');
+                errorMsg.textContent = `Error 404: File not found -> ${filename}`;
+                errorLog.appendChild(errorMsg);
+            }
+            
+            if (loadedCount === files.length) {
+                setTimeout(() => {
+                    progressBar.parentElement.style.opacity = '0';
+                }, 1000);
             }
         }
-
-        function openLightbox(url, name) {
-            lightboxImg.src = url;
-            downloadBtn.href = url;
-            downloadBtn.setAttribute('download', name);
+        
+        files.forEach(filename => {
+            const item = document.createElement('div');
+            item.className = 'item';
+            
+            const img = new Image();
+            img.onload = () => {
+                img.classList.add('loaded');
+                updateProgress(false);
+            };
+            img.onerror = () => {
+                updateProgress(true, filename);
+            };
+            
+            img.src = filename;
+            img.onclick = () => openLightbox(filename);
+            
+            item.appendChild(img);
+            grid.appendChild(item);
+        });
+        
+        function openLightbox(filename) {
+            currentFile = filename;
             lightbox.classList.add('active');
+            
+            if (filename.toLowerCase().endsWith('.gif')) {
+                mainView.style.display = 'none';
+                gifCanvas.style.display = 'block';
+                
+                const img = new Image();
+                img.src = filename;
+                img.onload = () => {
+                    gifCanvas.width = img.width;
+                    gifCanvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                };
+            } else {
+                gifCanvas.style.display = 'none';
+                mainView.style.display = 'block';
+                mainView.src = filename;
+            }
         }
-
+        
         function closeLightbox() {
             lightbox.classList.remove('active');
             setTimeout(() => {
-                lightboxImg.src = '';
-                stopFreeze();
-            }, 400);
+                mainView.src = '';
+                ctx.clearRect(0, 0, gifCanvas.width, gifCanvas.height);
+            }, 300);
         }
-
-        function startFreeze(e) {
-            if (!lightboxImg.src.toLowerCase().endsWith('.gif')) return;
-            
-            const ctx = freezeCanvas.getContext('2d');
-            const imgWidth = lightboxImg.naturalWidth;
-            const imgHeight = lightboxImg.naturalHeight;
-            
-            freezeCanvas.width = imgWidth;
-            freezeCanvas.height = imgHeight;
-            
-            const wrapperRect = lightboxWrapper.getBoundingClientRect();
-            const imgRatio = imgWidth / imgHeight;
-            const wrapperRatio = wrapperRect.width / wrapperRect.height;
-            
-            let displayWidth, displayHeight;
-            
-            if (imgRatio > wrapperRatio) {
-                displayWidth = wrapperRect.width;
-                displayHeight = displayWidth / imgRatio;
-            } else {
-                displayHeight = wrapperRect.height;
-                displayWidth = displayHeight * imgRatio;
-            }
-            
-            freezeCanvas.style.width = `${displayWidth}px`;
-            freezeCanvas.style.height = `${displayHeight}px`;
-            
-            try {
-                ctx.drawImage(lightboxImg, 0, 0, imgWidth, imgHeight);
-                freezeCanvas.style.display = 'block';
-            } catch (err) {}
+        
+        function downloadItem() {
+            const link = document.createElement('a');
+            link.href = currentFile;
+            link.download = currentFile.split('/').pop();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
-
-        function stopFreeze() {
-            freezeCanvas.style.display = 'none';
-        }
-
-        closeModalBtn.addEventListener('click', closeLightbox);
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox) closeLightbox();
-        });
-
-        lightboxWrapper.addEventListener('contextmenu', (e) => e.preventDefault());
-        lightboxWrapper.addEventListener('pointerdown', startFreeze);
-        window.addEventListener('pointerup', stopFreeze);
-        window.addEventListener('pointercancel', stopFreeze);
-
-        loadGallery();
     </script>
 </body>
 </html>
